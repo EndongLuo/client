@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package robot.diagnostics;
+
+message KeyValue {
+  string key = 1;
+  string value = 2;
+}
+
+message DiagnosticStatus {
+  uint32 level = 1;
+  uint32 name = 2;
+  string message = 3;
+  string hardware_id = 4;
+  repeated KeyValue values = 5;
+}
+
+message DiagnosticMessage {
+
+  repeated DiagnosticStatus status = 1;
+}
