@@ -43,58 +43,58 @@ ws.on('message', (data, isBinary) => {
 
     const decoded = DiagnosticMessage.decode(data);
 
-    const obj = DiagnosticMessage.toObject(decoded, {
-        longs: Number,
-        defaults: true,
-        arrays: true,
-        objects: true,
-    });
-    console.log(obj);
+    // const obj = DiagnosticMessage.toObject(decoded, {
+    //     longs: Number,
+    //     defaults: true,
+    //     arrays: true,
+    //     objects: true,
+    // });
+    // console.log(obj);
 
-    obj.status = decodeStatusName(obj.status);
+    // obj.status = decodeStatusName(obj.status);
 
-    console.log('源数据:', data);
-    console.log('解析成功:', JSON.stringify(obj, null, 2));
+    // console.log('源数据:', data);
+    // console.log('解析成功:', JSON.stringify(obj, null, 2));
 
-    // if (!isBinary) {
-    //     console.log('收到文本:', data.toString());
-    //     return;
-    // }
+    if (!isBinary) {
+        console.log('收到文本:', data.toString());
+        return;
+    }
 
-    // recvBuffer = Buffer.concat([
-    //     recvBuffer,
-    //     Buffer.from(data)
-    // ]);
+    recvBuffer = Buffer.concat([
+        recvBuffer,
+        Buffer.from(data)
+    ]);
 
-    // while (recvBuffer.length >= 4) {
-    //     const bodyLength = recvBuffer.readUInt32BE(0);
+    while (recvBuffer.length >= 4) {
+        const bodyLength = recvBuffer.readUInt32BE(0);
 
-    //     if (recvBuffer.length < 4 + bodyLength) {
-    //         return;
-    //     }
+        if (recvBuffer.length < 4 + bodyLength) {
+            return;
+        }
 
-    //     const body = recvBuffer.subarray(4, 4 + bodyLength);
+        const body = recvBuffer.subarray(4, 4 + bodyLength);
 
-    //     recvBuffer = recvBuffer.subarray(4 + bodyLength);
+        recvBuffer = recvBuffer.subarray(4 + bodyLength);
 
-    //     try {
-    //         const decoded = DiagnosticMessage.decode(body);
+        try {
+            const decoded = DiagnosticMessage.decode(body);
 
-    //         const obj = DiagnosticMessage.toObject(decoded, {
-    //             longs: Number,
-    //             defaults: true,
-    //             arrays: true,
-    //             objects: true,
-    //         });
-    //         obj.message = decodeStatusName(obj.message.status);
+            const obj = DiagnosticMessage.toObject(decoded, {
+                longs: Number,
+                defaults: true,
+                arrays: true,
+                objects: true,
+            });
+            obj.message = decodeStatusName(obj.message.status);
 
-    //         console.log('源数据:', data);
-    //         console.log('解析成功:', JSON.stringify(obj, null, 2));
-    //     } catch (err) {
-    //         console.error('protobuf解析失败:', err.message);
-    //         console.error('body HEX:', body.toString('hex'));
-    //     }
-    // }
+            console.log('源数据:', data);
+            console.log('解析成功:', JSON.stringify(obj, null, 2));
+        } catch (err) {
+            console.error('protobuf解析失败:', err.message);
+            console.error('body HEX:', body.toString('hex'));
+        }
+    }
 
 });
 

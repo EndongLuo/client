@@ -270,12 +270,12 @@ ws.on('open', () => {
 
     console.log("protobuf 字节长度:", body.length);
 
-    ws.send(body);
-    // const packet = Buffer.alloc(4 + body.length);
-    // packet.writeUInt32BE(body.length, 0);
-    // Buffer.from(body).copy(packet, 4);
+    // ws.send(body);
+    const packet = Buffer.alloc(4 + body.length);
+    packet.writeUInt32BE(body.length, 0);
+    Buffer.from(body).copy(packet, 4);
 
-    // ws.send(packet, { binary: true });
+    ws.send(packet, { binary: true });
 });
 
 // 接收消息
