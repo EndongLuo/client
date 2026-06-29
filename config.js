@@ -14,7 +14,7 @@ export const CONNECTION_CONFIG = Object.freeze({
 
 export const DEFAULT_RUNTIME_CONFIG = Object.freeze({
     sendDiagnostics: true,
-    sendIntervalMs: 500,
+    sendIntervalMs: 3000,
     sendHeartbeat: false,
     heartbeatIntervalMs: 3000,
     heartbeatMessage: 'Hello Server',

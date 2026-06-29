@@ -154,23 +154,23 @@ export class DiagnosticClient {
             const message = decodeDiagnosticMessage(packet);
             const deviceText = deviceId ?? 'legacy';
             const legacyText = isLegacy ? ' legacy=true' : '';
-            console.log(
-                'rx device=' + deviceText +
-                ' seq=' + (seq ?? 'none') +
-                ' frameBytes=' + frame.length +
-                ' headerBytes=' + headerBytes +
-                ' payloadBytes=' + packet.length +
-                legacyText
-            );
+            // console.log(
+            //     'rx device=' + deviceText +
+            //     ' seq=' + (seq ?? 'none') +
+            //     ' frameBytes=' + frame.length +
+            //     ' headerBytes=' + headerBytes +
+            //     ' payloadBytes=' + packet.length +
+            //     legacyText
+            // );
 
             if (this.config.logPacketHex) {
-                console.log('packet hex:', packet.toString('hex'));
+                console.log('------', deviceText, packet.length, 'packet hex:', packet.toString('hex'));
             }
             if (this.config.logDecodedJson) {
-                console.log('decoded JSON:', JSON.stringify({ message }, null, 2));
+                // console.log('decoded JSON:', JSON.stringify({ message }, null, 2));
             }
             if (this.config.logDecodedTable) {
-                console.table(toDiagnosticTableRows(message));
+                // console.table(toDiagnosticTableRows(message));
             }
         } catch (err) {
             console.error('binary decode failed:', getErrorMessage(err));

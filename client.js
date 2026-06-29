@@ -1,3 +1,3 @@
-import { startDiagnosticClient } from './client.js';
+import { startDiagnosticClient } from './clientMain.js';
 
 startDiagnosticClient('client');
