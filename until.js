@@ -4,6 +4,25 @@ import { CONNECTION_CONFIG, PROTOCOL_CONFIG } from './config.js';
 export const DEVICE_ID_BYTES = PROTOCOL_CONFIG.deviceIdBytes;
 export const SEQUENCE_BYTES = PROTOCOL_CONFIG.sequenceBytes;
 export const FRAME_HEADER_BYTES = DEVICE_ID_BYTES + SEQUENCE_BYTES;
+
+const LORA_MAGIC_BYTES = 2;
+const LORA_VERSION_BYTES = 1;
+const LORA_TYPE_BYTES = 1;
+const LORA_DEVICE_ID_BYTES = 2;
+
+export const LORA_FRAME_MAGIC = 0x4c52;
+export const LORA_FRAME_VERSION = 1;
+export const LORA_FRAME_TYPES = Object.freeze({
+    DIAGNOSTIC_REQUEST: 1,
+    DIAGNOSTIC_RESPONSE: 2,
+});
+export const LORA_FRAME_HEADER_BYTES = LORA_MAGIC_BYTES
+    + LORA_VERSION_BYTES
+    + LORA_TYPE_BYTES
+    + LORA_DEVICE_ID_BYTES
+    + LORA_DEVICE_ID_BYTES
+    + SEQUENCE_BYTES;
+
 const WS_CLOSING = 2;
 const WS_CLOSED = 3;
 
@@ -17,6 +36,106 @@ export function createDiagnosticFrame({ deviceId, seq, packet }) {
     payload.copy(frame, FRAME_HEADER_BYTES);
 
     return frame;
+}
+
+export function createLoraDiagnosticRequestFrame({ sourceDeviceId, targetDeviceId, seq }) {
+    return createLoraFrame({
+        type: LORA_FRAME_TYPES.DIAGNOSTIC_REQUEST,
+        sourceDeviceId,
+        targetDeviceId,
+        seq,
+    });
+}
+
+export function createLoraDiagnosticResponseFrame({ sourceDeviceId, targetDeviceId, seq, packet }) {
+    const payload = Buffer.from(packet);
+    if (!isDiagnosticBinaryMessage(payload)) {
+        throw new Error('lora diagnostic response packet is invalid');
+    }
+
+    return createLoraFrame({
+        type: LORA_FRAME_TYPES.DIAGNOSTIC_RESPONSE,
+        sourceDeviceId,
+        targetDeviceId,
+        seq,
+        packet: payload,
+    });
+}
+
+export function unwrapLoraFrame(frameLike) {
+    const frame = Buffer.from(frameLike);
+    if (frame.length < LORA_FRAME_HEADER_BYTES) {
+        return null;
+    }
+    if (frame.readUInt16BE(0) !== LORA_FRAME_MAGIC) {
+        return null;
+    }
+
+    const version = frame.readUInt8(LORA_MAGIC_BYTES);
+    if (version !== LORA_FRAME_VERSION) {
+        throw new Error('lora frame version mismatch: ' + version);
+    }
+
+    const type = frame.readUInt8(LORA_MAGIC_BYTES + LORA_VERSION_BYTES);
+    validateLoraFrameType(type);
+
+    const sourceOffset = LORA_MAGIC_BYTES + LORA_VERSION_BYTES + LORA_TYPE_BYTES;
+    const targetOffset = sourceOffset + LORA_DEVICE_ID_BYTES;
+    const seqOffset = targetOffset + LORA_DEVICE_ID_BYTES;
+    const packet = frame.subarray(LORA_FRAME_HEADER_BYTES);
+
+    if (type === LORA_FRAME_TYPES.DIAGNOSTIC_REQUEST && packet.length !== 0) {
+        throw new Error('lora diagnostic request must not include payload');
+    }
+    if (type === LORA_FRAME_TYPES.DIAGNOSTIC_RESPONSE && !isDiagnosticBinaryMessage(packet)) {
+        throw new Error('lora diagnostic response payload is invalid');
+    }
+
+    return {
+        type,
+        sourceDeviceId: frame.readUInt16BE(sourceOffset),
+        targetDeviceId: frame.readUInt16BE(targetOffset),
+        seq: frame.readUInt32BE(seqOffset),
+        packet,
+        headerBytes: LORA_FRAME_HEADER_BYTES,
+        isLoraFrame: true,
+    };
+}
+
+function createLoraFrame({ type, sourceDeviceId, targetDeviceId, seq, packet = Buffer.alloc(0) }) {
+    validateLoraFrameType(type);
+    validateUInt16(sourceDeviceId, 'sourceDeviceId');
+    validateUInt16(targetDeviceId, 'targetDeviceId');
+    validateUInt32(seq, 'seq');
+
+    const payload = Buffer.from(packet);
+    const frame = Buffer.allocUnsafe(LORA_FRAME_HEADER_BYTES + payload.length);
+    let offset = 0;
+
+    frame.writeUInt16BE(LORA_FRAME_MAGIC, offset);
+    offset += LORA_MAGIC_BYTES;
+    frame.writeUInt8(LORA_FRAME_VERSION, offset);
+    offset += LORA_VERSION_BYTES;
+    frame.writeUInt8(type, offset);
+    offset += LORA_TYPE_BYTES;
+    frame.writeUInt16BE(sourceDeviceId, offset);
+    offset += LORA_DEVICE_ID_BYTES;
+    frame.writeUInt16BE(targetDeviceId, offset);
+    offset += LORA_DEVICE_ID_BYTES;
+    frame.writeUInt32BE(seq >>> 0, offset);
+    offset += SEQUENCE_BYTES;
+    payload.copy(frame, offset);
+
+    return frame;
+}
+
+function validateLoraFrameType(type) {
+    if (
+        type !== LORA_FRAME_TYPES.DIAGNOSTIC_REQUEST &&
+        type !== LORA_FRAME_TYPES.DIAGNOSTIC_RESPONSE
+    ) {
+        throw new Error('unknown lora frame type: ' + type);
+    }
 }
 
 export function unwrapDiagnosticFrame(frameLike) {
@@ -192,5 +311,11 @@ export function toDiagnosticTableRows(items) {
 export function validateUInt16(value, name) {
     if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
         throw new Error(name + ' must be an integer from 0 to 65535: ' + value);
+    }
+}
+
+export function validateUInt32(value, name) {
+    if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
+        throw new Error(name + ' must be an integer from 0 to 4294967295: ' + value);
     }
 }

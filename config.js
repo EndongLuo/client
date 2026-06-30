@@ -1,4 +1,14 @@
-export const DEFAULT_CLIENT_KEY = 'clientA';
+export const DEFAULT_CLIENT_KEY = 'client';
+
+export const DEVICE_ID = 201;
+export const HOSTID = 201;
+export const IDs = Object.freeze([201, 202]);
+
+export const LORA_ROLES = Object.freeze({
+    AUTO: 'auto',
+    HOST: 'host',
+    SLAVE: 'slave',
+});
 
 export const PROTOCOL_CONFIG = Object.freeze({
     deviceIdBytes: 2,
@@ -13,7 +23,7 @@ export const CONNECTION_CONFIG = Object.freeze({
 });
 
 export const DEFAULT_RUNTIME_CONFIG = Object.freeze({
-    sendDiagnostics: true,
+    sendDiagnostics: false,
     sendIntervalMs: 3000,
     sendHeartbeat: false,
     heartbeatIntervalMs: 3000,
@@ -22,6 +32,12 @@ export const DEFAULT_RUNTIME_CONFIG = Object.freeze({
     logPacketHex: true,
     logDecodedJson: true,
     logDecodedTable: true,
+    pollDiagnostics: true,
+    loraRole: LORA_ROLES.AUTO,
+    diagnosticResponseTimeoutMs: 500,
+    diagnosticPollGapMs: 0,
+    HOSTID,
+    IDs,
 });
 
 export const DIAGNOSTIC_MESSAGE = Object.freeze([
@@ -268,7 +284,9 @@ export const DIAGNOSTIC_MESSAGE = Object.freeze([
 export const CLIENTS = Object.freeze({
     client: Object.freeze({
         label: '201',
-        deviceId: 201,
+        deviceId: DEVICE_ID,
+        HOSTID,
+        IDs,
         url: 'ws://192.168.201.10:6432',
         sendHeartbeat: false,
         diagnosticMessage: DIAGNOSTIC_MESSAGE,
@@ -290,11 +308,64 @@ export function getClientConfig(clientKey = DEFAULT_CLIENT_KEY) {
         );
     }
 
-    return {
+    const mergedConfig = {
         ...CONNECTION_CONFIG,
         ...DEFAULT_RUNTIME_CONFIG,
         ...clientConfig,
+    };
+    const deviceId = readUInt16Env('DEVICE_ID', mergedConfig.deviceId);
+    const hostId = readUInt16Env('HOSTID', mergedConfig.HOSTID);
+    const ids = readUInt16ListEnv('IDS', mergedConfig.IDs);
+
+    return {
+        ...mergedConfig,
+        deviceId,
+        HOSTID: hostId,
+        IDs: ids,
+        loraRole: process.env.LORA_ROLE || mergedConfig.loraRole,
         clientKey,
         diagnosticMessage: clientConfig.diagnosticMessage ?? DIAGNOSTIC_MESSAGE,
     };
+}
+
+function readUInt16Env(name, fallback) {
+    const rawValue = process.env[name];
+    if (rawValue === undefined || rawValue === '') {
+        return fallback;
+    }
+
+    const value = Number(rawValue);
+    if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
+        throw new Error(name + ' must be an integer from 0 to 65535: ' + rawValue);
+    }
+
+    return value;
+}
+
+function readUInt16ListEnv(name, fallback) {
+    const rawValue = process.env[name];
+    if (rawValue === undefined || rawValue === '') {
+        return fallback;
+    }
+
+    const values = rawValue
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean)
+        .map(value => readUInt16Literal(name, value));
+
+    if (values.length === 0) {
+        throw new Error(name + ' must contain at least one id');
+    }
+
+    return Object.freeze(values);
+}
+
+function readUInt16Literal(name, rawValue) {
+    const value = Number(rawValue);
+    if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
+        throw new Error(name + ' contains invalid id: ' + rawValue);
+    }
+
+    return value;
 }

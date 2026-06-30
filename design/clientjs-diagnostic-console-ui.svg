@@ -1,0 +1,354 @@
+<svg width="1940" height="1320" viewBox="0 0 1940 1320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .bg{fill:#EEF2F8}
+    .page{fill:#F3F6FA}
+    .panel{fill:#FFFFFF;stroke:#E0E6EF;stroke-width:1}
+    .soft{fill:#F8FAFD;stroke:#E0E6EF;stroke-width:1}
+    .dark{fill:#0A0E16}
+    .ink{fill:#11161F}
+    .muted{fill:#626E80}
+    .sub{fill:#8692A5}
+    .white{fill:#FFFFFF}
+    .blue{fill:#1450C6}
+    .green{fill:#16A351}
+    .orange{fill:#DA710F}
+    .purple{fill:#663FB9}
+    .cyan{fill:#039DBB}
+    .red{fill:#D63031}
+    .shadow{filter:url(#shadow)}
+    .t10{font:600 10px Inter,Arial,sans-serif;letter-spacing:.04em}
+    .t11{font:500 11px Inter,Arial,sans-serif}
+    .t12{font:500 12px Inter,Arial,sans-serif}
+    .t12s{font:600 12px Inter,Arial,sans-serif}
+    .t13{font:500 13px Inter,Arial,sans-serif}
+    .t14{font:500 14px Inter,Arial,sans-serif}
+    .t14s{font:600 14px Inter,Arial,sans-serif}
+    .t16s{font:600 16px Inter,Arial,sans-serif}
+    .t17b{font:700 17px Inter,Arial,sans-serif}
+    .t18b{font:700 18px Inter,Arial,sans-serif}
+    .t20b{font:700 20px Inter,Arial,sans-serif}
+    .t22b{font:700 22px Inter,Arial,sans-serif}
+    .t28b{font:700 28px Inter,Arial,sans-serif}
+    .t30b{font:700 30px Inter,Arial,sans-serif}
+  </style>
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="15" flood-color="#0E1320" flood-opacity="0.07"/>
+    </filter>
+  </defs>
+
+  <rect class="bg" width="1940" height="1320"/>
+
+  <!-- Desktop frame -->
+  <g transform="translate(64 64)">
+    <rect width="1440" height="1040" rx="8" class="page"/>
+
+    <!-- Sidebar -->
+    <rect width="252" height="1040" class="dark"/>
+    <rect x="24" y="26" width="38" height="38" rx="8" class="blue"/>
+    <text x="34" y="50" class="t13 white">JS</text>
+    <text x="74" y="43" class="t17b white">ClientJS</text>
+    <text x="74" y="59" class="t11" fill="#9EA9BB">diagnostic console</text>
+    <line x1="24" y1="88" x2="228" y2="88" stroke="#2A3344"/>
+
+    <g transform="translate(24 112)">
+      <rect width="204" height="40" rx="8" class="blue"/>
+      <text x="44" y="25" class="t14s white">总览</text>
+      <rect x="12" y="9" width="22" height="22" rx="6" fill="#FFFFFF"/>
+      <text x="19" y="24" class="t10 blue">O</text>
+      <g class="muted">
+        <text x="44" y="73" class="t14">连接会话</text>
+        <text x="44" y="121" class="t14">诊断指令</text>
+        <text x="44" y="169" class="t14">协议帧</text>
+        <text x="44" y="217" class="t14">机器人节点</text>
+        <text x="44" y="265" class="t14">设置</text>
+      </g>
+      <g fill="#E0E6EF">
+        <rect x="12" y="57" width="22" height="22" rx="6"/>
+        <rect x="12" y="105" width="22" height="22" rx="6"/>
+        <rect x="12" y="153" width="22" height="22" rx="6"/>
+        <rect x="12" y="201" width="22" height="22" rx="6"/>
+        <rect x="12" y="249" width="22" height="22" rx="6"/>
+      </g>
+      <text x="20" y="72" class="t10 muted">S</text>
+      <text x="20" y="120" class="t10 muted">C</text>
+      <text x="20" y="168" class="t10 muted">P</text>
+      <text x="20" y="216" class="t10 muted">R</text>
+      <text x="20" y="264" class="t10 muted">G</text>
+    </g>
+
+    <g transform="translate(24 882)">
+      <rect width="204" height="132" rx="8" fill="#151B26" stroke="#2E384C"/>
+      <text x="14" y="29" class="t12" fill="#9EA9BB">当前环境</text>
+      <text x="14" y="58" class="t16s white">Local Socket Lab</text>
+      <rect x="14" y="78" width="154" height="28" rx="14" fill="#E1ECFF"/>
+      <text x="25" y="97" class="t12s blue">ws://127.0.0.1:3000</text>
+    </g>
+
+    <!-- Main -->
+    <g transform="translate(282 26)">
+      <text x="0" y="31" class="t28b ink">诊断客户端控制台</text>
+      <text x="0" y="52" class="t13 muted">Socket.IO 会话、诊断指令、二进制协议帧监控</text>
+      <rect x="655" y="5" width="68" height="28" rx="14" fill="#E6F9ED"/>
+      <text x="674" y="24" class="t12s green">运行中</text>
+      <rect x="738" y="0" width="96" height="40" rx="8" fill="#FFF0F0" stroke="#F9C7C7"/>
+      <text x="758" y="25" class="t14s red">断开连接</text>
+
+      <!-- Metrics -->
+      <g transform="translate(0 84)">
+        <g class="shadow">
+          <rect width="205" height="142" rx="8" class="panel"/>
+          <rect x="18" y="18" width="34" height="34" rx="8" class="green"/>
+          <text x="30" y="41" class="t14s white">✓</text>
+          <text x="64" y="31" class="t12 sub">连接状态</text>
+          <text x="64" y="48" class="t11 green">握手 42ms</text>
+          <text x="18" y="103" class="t30b ink">Ready</text>
+        </g>
+        <g transform="translate(217 0)" class="shadow">
+          <rect width="205" height="142" rx="8" class="panel"/>
+          <rect x="18" y="18" width="34" height="34" rx="8" class="blue"/>
+          <text x="30" y="41" class="t14s white">N</text>
+          <text x="64" y="31" class="t12 sub">在线客户端</text>
+          <text x="64" y="48" class="t11 blue">+3 robot</text>
+          <text x="18" y="103" class="t30b ink">12</text>
+        </g>
+        <g transform="translate(434 0)" class="shadow">
+          <rect width="205" height="142" rx="8" class="panel"/>
+          <rect x="18" y="18" width="34" height="34" rx="8" class="purple"/>
+          <text x="30" y="41" class="t14s white">D</text>
+          <text x="64" y="31" class="t12 sub">诊断指令</text>
+          <text x="64" y="48" class="t11 purple">今日发送</text>
+          <text x="18" y="103" class="t30b ink">184</text>
+        </g>
+        <g transform="translate(651 0)" class="shadow">
+          <rect width="205" height="142" rx="8" class="panel"/>
+          <rect x="18" y="18" width="34" height="34" rx="8" class="cyan"/>
+          <text x="30" y="41" class="t14s white">L</text>
+          <text x="64" y="31" class="t12 sub">平均延迟</text>
+          <text x="64" y="48" class="t11 cyan">稳定</text>
+          <text x="18" y="103" class="t30b ink">28ms</text>
+        </g>
+      </g>
+
+      <!-- Connection panel -->
+      <g transform="translate(0 248)" class="shadow">
+        <rect width="624" height="222" rx="8" class="panel"/>
+        <rect x="20" y="20" width="32" height="32" rx="8" class="blue"/>
+        <text x="30" y="41" class="t14s white">↔</text>
+        <text x="64" y="35" class="t18b ink">连接配置</text>
+        <text x="64" y="52" class="t12 muted">快速切换 Socket 地址、命名空间和鉴权令牌</text>
+        <text x="20" y="90" class="t12s muted">Server URL</text>
+        <rect x="20" y="100" width="292" height="42" rx="8" class="soft"/>
+        <text x="32" y="126" class="t13 ink">ws://127.0.0.1:3000</text>
+        <text x="326" y="90" class="t12s muted">Namespace</text>
+        <rect x="326" y="100" width="256" height="42" rx="8" class="soft"/>
+        <text x="338" y="126" class="t13 ink">/diagnostic</text>
+        <text x="20" y="164" class="t12s muted">Auth Token</text>
+        <rect x="20" y="174" width="292" height="42" rx="8" class="soft"/>
+        <text x="32" y="200" class="t13 ink">••••••••••••••••</text>
+        <rect x="326" y="174" width="128" height="42" rx="8" class="blue"/>
+        <text x="361" y="201" class="t14s white">重新握手</text>
+        <rect x="468" y="174" width="114" height="42" rx="8" fill="#FFFFFF" stroke="#E0E6EF"/>
+        <text x="497" y="201" class="t14s ink">同步配置</text>
+      </g>
+
+      <!-- Node table -->
+      <g transform="translate(0 488)" class="shadow">
+        <rect width="624" height="282" rx="8" class="panel"/>
+        <text x="20" y="38" class="t18b ink">客户端节点</text>
+        <rect x="118" y="20" width="90" height="28" rx="14" fill="#F0E8FF"/>
+        <text x="130" y="39" class="t12s purple">A/B + Robot</text>
+        <text x="34" y="80" class="t10 sub">CLIENT</text>
+        <text x="160" y="80" class="t10 sub">ROLE</text>
+        <text x="262" y="80" class="t10 sub">HEARTBEAT</text>
+        <text x="368" y="80" class="t10 sub">CODEC</text>
+        <text x="474" y="80" class="t10 sub">STATUS</text>
+        <g transform="translate(20 94)">
+          <rect width="584" height="48" rx="8" fill="#FFFFFF"/>
+          <text x="14" y="30" class="t14s ink">clientA</text>
+          <text x="140" y="30" class="t13 muted">sender</text>
+          <text x="242" y="30" class="t13 muted">2s ago</text>
+          <text x="348" y="30" class="t13 muted">protobuf</text>
+          <rect x="454" y="11" width="64" height="26" rx="13" fill="#E6F9ED"/>
+          <text x="469" y="29" class="t12s green">online</text>
+        </g>
+        <g transform="translate(20 150)">
+          <rect width="584" height="48" rx="8" fill="#F8FAFD"/>
+          <text x="14" y="30" class="t14s ink">clientB</text>
+          <text x="140" y="30" class="t13 muted">receiver</text>
+          <text x="242" y="30" class="t13 muted">5s ago</text>
+          <text x="348" y="30" class="t13 muted">cbor</text>
+          <rect x="454" y="11" width="64" height="26" rx="13" fill="#E6F9ED"/>
+          <text x="469" y="29" class="t12s green">online</text>
+        </g>
+        <g transform="translate(20 206)">
+          <rect width="584" height="48" rx="8" fill="#FFFFFF"/>
+          <text x="14" y="30" class="t14s ink">Robot-01</text>
+          <text x="140" y="30" class="t13 muted">executor</text>
+          <text x="242" y="30" class="t13 muted">18s ago</text>
+          <text x="348" y="30" class="t13 muted">binary</text>
+          <rect x="454" y="11" width="54" height="26" rx="13" fill="#FFF1DB"/>
+          <text x="469" y="29" class="t12s orange">busy</text>
+        </g>
+      </g>
+
+      <!-- Command panel -->
+      <g transform="translate(0 788)" class="shadow">
+        <rect width="624" height="202" rx="8" class="panel"/>
+        <text x="20" y="38" class="t18b ink">指令编排</text>
+        <rect x="108" y="20" width="148" height="28" rx="14" fill="#E1ECFF"/>
+        <text x="121" y="39" class="t12s blue">schema: diagnostic.proto</text>
+        <text x="20" y="80" class="t12s muted">Command</text>
+        <rect x="20" y="90" width="268" height="42" rx="8" class="soft"/>
+        <text x="32" y="116" class="t13 ink">DIAG_READ_STATUS</text>
+        <text x="302" y="80" class="t12s muted">Target</text>
+        <rect x="302" y="90" width="148" height="42" rx="8" class="soft"/>
+        <text x="314" y="116" class="t13 ink">Robot-01</text>
+        <rect x="464" y="90" width="118" height="42" rx="8" class="blue"/>
+        <text x="509" y="117" class="t14s white">发送</text>
+        <rect x="20" y="152" width="584" height="34" rx="8" fill="#090D14"/>
+        <text x="34" y="174" class="t12" fill="#C8DBF4">{ "traceId": "d-8842", "timeout": 3000, "format": "binary" }</text>
+      </g>
+
+      <!-- Right rail -->
+      <g transform="translate(642 248)" class="shadow">
+        <rect width="214" height="314" rx="8" class="panel"/>
+        <text x="18" y="38" class="t18b ink">协议帧</text>
+        <circle cx="25" cy="66" r="4" class="green"/>
+        <text x="38" y="70" class="t12 muted">0x01 handshake</text>
+        <circle cx="25" cy="96" r="4" class="blue"/>
+        <text x="38" y="100" class="t12 muted">0x0A diagnostic</text>
+        <circle cx="25" cy="126" r="4" class="orange"/>
+        <text x="38" y="130" class="t12 muted">0x1D robot tick</text>
+        <circle cx="25" cy="156" r="4" class="red"/>
+        <text x="38" y="160" class="t12 muted">0xFE error</text>
+        <line x1="18" y1="184" x2="196" y2="184" stroke="#ECF0F6"/>
+        <text x="18" y="210" class="t12 muted">binary codec 将消息压缩为</text>
+        <text x="18" y="228" class="t12 muted">frame header + payload。</text>
+        <rect x="18" y="248" width="178" height="48" rx="8" fill="#090D14"/>
+        <text x="30" y="270" class="t12" fill="#C8DBF4">b1 04 7c 9a 00 ff</text>
+        <text x="30" y="288" class="t12" fill="#C8DBF4">12 4d c0 31 8e 09</text>
+      </g>
+
+      <g transform="translate(642 580)" class="shadow">
+        <rect width="214" height="410" rx="8" class="panel"/>
+        <text x="18" y="38" class="t18b ink">实时事件</text>
+        <g class="t12">
+          <text x="18" y="76" class="sub">16:42</text><rect x="64" y="58" width="42" height="26" rx="13" fill="#E1ECFF"/><text x="76" y="76" class="t12s blue">info</text><text x="116" y="76" class="ink">clientA connected</text>
+          <text x="18" y="122" class="sub">16:43</text><rect x="64" y="104" width="42" height="26" rx="13" fill="#F0E8FF"/><text x="76" y="122" class="t12s purple">diag</text><text x="116" y="122" class="ink">read status sent</text>
+          <text x="18" y="168" class="sub">16:43</text><rect x="64" y="150" width="34" height="26" rx="13" fill="#E6F9ED"/><text x="77" y="168" class="t12s green">ok</text><text x="108" y="168" class="ink">Robot ack 28ms</text>
+          <text x="18" y="214" class="sub">16:44</text><rect x="64" y="196" width="48" height="26" rx="13" fill="#FFF1DB"/><text x="76" y="214" class="t12s orange">warn</text><text x="122" y="214" class="ink">heartbeat slow</text>
+          <text x="18" y="260" class="sub">16:45</text><rect x="64" y="242" width="36" height="26" rx="13" fill="#F8FAFD"/><text x="78" y="260" class="t12s muted">bin</text><text x="110" y="260" class="ink">frame decoded</text>
+          <text x="18" y="306" class="sub">16:46</text><rect x="64" y="288" width="34" height="26" rx="13" fill="#E6F9ED"/><text x="77" y="306" class="t12s green">ok</text><text x="108" y="306" class="ink">codec map synced</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Notes rail -->
+    <g transform="translate(1230 0)">
+      <rect width="210" height="1040" fill="#FBFCFE" stroke="#E0E6EF"/>
+      <text x="24" y="52" class="t20b ink">页面意图</text>
+      <text x="24" y="88" class="t12 muted">这个 UI 面向调试人员：</text>
+      <text x="24" y="106" class="t12 muted">第一屏优先呈现连接健康度、</text>
+      <text x="24" y="124" class="t12 muted">节点状态、指令发送和协议帧。</text>
+      <line x1="24" y1="164" x2="186" y2="164" stroke="#ECF0F6"/>
+      <text x="24" y="202" class="t14s ink">关键交互</text>
+      <text x="24" y="232" class="t12 muted">1. 切换 Socket 地址</text>
+      <text x="24" y="252" class="t12 muted">2. 查看节点心跳</text>
+      <text x="24" y="272" class="t12 muted">3. 发送诊断指令</text>
+      <text x="24" y="292" class="t12 muted">4. 查看 frame 解码日志</text>
+      <line x1="24" y1="332" x2="186" y2="332" stroke="#ECF0F6"/>
+      <text x="24" y="370" class="t14s ink">视觉原则</text>
+      <text x="24" y="400" class="t12 muted">克制、密集、可扫读；</text>
+      <text x="24" y="420" class="t12 muted">卡片半径 8px；高亮色只</text>
+      <text x="24" y="440" class="t12 muted">用于状态和主操作。</text>
+    </g>
+  </g>
+
+  <!-- Mobile frame -->
+  <g transform="translate(1560 64)">
+    <rect width="390" height="844" rx="28" class="page" stroke="#C7CFDC"/>
+    <rect x="18" y="22" width="36" height="36" rx="8" class="blue"/>
+    <text x="27" y="45" class="t13 white">JS</text>
+    <text x="66" y="38" class="t17b ink">ClientJS</text>
+    <text x="66" y="54" class="t12 muted">节点状态</text>
+    <rect x="304" y="28" width="68" height="28" rx="14" fill="#E6F9ED"/>
+    <text x="323" y="47" class="t12s green">online</text>
+
+    <g transform="translate(18 82)" class="shadow">
+      <rect width="354" height="156" rx="8" class="panel"/>
+      <text x="18" y="34" class="t12s muted">当前连接</text>
+      <text x="18" y="70" class="t20b ink">ws://127.0.0.1:3000</text>
+      <rect x="18" y="98" width="82" height="28" rx="14" fill="#E1ECFF"/>
+      <text x="30" y="117" class="t12s blue">12 clients</text>
+      <rect x="110" y="98" width="56" height="28" rx="14" fill="#E6F9ED"/>
+      <text x="123" y="117" class="t12s green">28ms</text>
+      <rect x="176" y="98" width="72" height="28" rx="14" fill="#F0E8FF"/>
+      <text x="188" y="117" class="t12s purple">184 diag</text>
+    </g>
+
+    <g transform="translate(18 254)" class="shadow">
+      <rect width="354" height="272" rx="8" class="panel"/>
+      <text x="18" y="38" class="t18b ink">节点列表</text>
+      <g transform="translate(18 58)">
+        <rect width="318" height="56" rx="8" fill="#F8FAFD"/>
+        <rect x="12" y="12" width="32" height="32" rx="8" class="green"/>
+        <text x="24" y="33" class="t12s white">c</text>
+        <text x="56" y="24" class="t14s ink">clientA</text>
+        <text x="56" y="42" class="t12 muted">sender · protobuf</text>
+        <rect x="242" y="15" width="64" height="26" rx="13" fill="#E6F9ED"/>
+        <text x="257" y="33" class="t12s green">online</text>
+      </g>
+      <g transform="translate(18 126)">
+        <rect width="318" height="56" rx="8" fill="#F8FAFD"/>
+        <rect x="12" y="12" width="32" height="32" rx="8" class="green"/>
+        <text x="24" y="33" class="t12s white">c</text>
+        <text x="56" y="24" class="t14s ink">clientB</text>
+        <text x="56" y="42" class="t12 muted">receiver · cbor</text>
+        <rect x="242" y="15" width="64" height="26" rx="13" fill="#E6F9ED"/>
+        <text x="257" y="33" class="t12s green">online</text>
+      </g>
+      <g transform="translate(18 194)">
+        <rect width="318" height="56" rx="8" fill="#F8FAFD"/>
+        <rect x="12" y="12" width="32" height="32" rx="8" class="orange"/>
+        <text x="24" y="33" class="t12s white">R</text>
+        <text x="56" y="24" class="t14s ink">Robot-01</text>
+        <text x="56" y="42" class="t12 muted">executor · binary</text>
+        <rect x="252" y="15" width="54" height="26" rx="13" fill="#FFF1DB"/>
+        <text x="267" y="33" class="t12s orange">busy</text>
+      </g>
+    </g>
+
+    <g transform="translate(18 542)" class="shadow">
+      <rect width="354" height="174" rx="8" class="panel"/>
+      <text x="18" y="38" class="t18b ink">快捷指令</text>
+      <text x="18" y="72" class="t12s muted">Command</text>
+      <rect x="18" y="82" width="318" height="42" rx="8" class="soft"/>
+      <text x="30" y="108" class="t13 ink">DIAG_READ_STATUS</text>
+      <rect x="18" y="140" width="318" height="0" rx="0" fill="#FFFFFF"/>
+      <rect x="18" y="122" width="318" height="40" rx="8" class="blue"/>
+      <text x="132" y="148" class="t14s white">发送到 Robot-01</text>
+    </g>
+
+    <rect x="18" y="770" width="354" height="56" rx="8" class="panel"/>
+    <rect x="48" y="784" width="54" height="28" rx="14" fill="#E1ECFF"/>
+    <text x="63" y="803" class="t12s blue">总览</text>
+    <text x="156" y="803" class="t12s muted">节点</text>
+    <text x="250" y="803" class="t12s muted">日志</text>
+  </g>
+
+  <!-- Spec -->
+  <g transform="translate(64 1160)">
+    <rect width="820" height="112" rx="8" class="panel"/>
+    <text x="28" y="42" class="t22b ink">设计规范</text>
+    <rect x="180" y="30" width="26" height="26" rx="6" class="ink"/>
+    <text x="216" y="49" class="t12 muted">ink</text>
+    <rect x="280" y="30" width="26" height="26" rx="6" class="blue"/>
+    <text x="316" y="49" class="t12 muted">blue/action</text>
+    <rect x="420" y="30" width="26" height="26" rx="6" class="green"/>
+    <text x="456" y="49" class="t12 muted">green/ok</text>
+    <rect x="540" y="30" width="26" height="26" rx="6" class="orange"/>
+    <text x="576" y="49" class="t12 muted">orange/warn</text>
+    <text x="180" y="86" class="t13 muted">桌面 1440 / 侧栏 252 / 卡片半径 8 / 面板间距 18-22 / 移动端 390</text>
+  </g>
+</svg>
