@@ -9,8 +9,7 @@ function isMainModule() {
 }
 
 if (isMainModule()) {
-    // const hostDeviceId = Number(process.argv[2]);
-    const hostDeviceId = 203;
+    const hostDeviceId = Number(process.argv[2]);
     try {
         const result = await SwitchHostDevice(hostDeviceId);
         if (!result.sent) {
@@ -18,8 +17,8 @@ if (isMainModule()) {
             process.exitCode = 1;
         } else {
             console.log(
-                'switch host sent hostDeviceId=' + result.hostDeviceId +
-                ' frameBytes=' + result.frameBytes
+                '目前主机切换为：' + result.hostDeviceId +
+                '，本机为' + result.roleText
             );
         }
     } catch (err) {

@@ -58,7 +58,7 @@ export const DEFAULT_RUNTIME_CONFIG = {
     pollDiagnostics: true,              // 是否启用诊断轮询。
     loraRole: LORA_ROLES.AUTO,          // LoRa 角色，默认自动判断。
     diagnosticResponseTimeoutMs: 500,   // 诊断响应超时时间，单位毫秒。
-    diagnosticPollGapMs: 100,           // 两次诊断轮询之间的等待时间，单位毫秒。
+    diagnosticPollGapMs: 500,           // 两次诊断轮询之间的等待时间，单位毫秒。
     HOSTID,                             // 默认主机设备 ID。
     IDs,                                // 默认参与诊断轮询的设备 ID 列表。
 };

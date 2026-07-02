@@ -85,6 +85,7 @@ export class DiagnosticClient {
         this.reconnectAttempt = 0;
         this.rxStatsByDevice = new Map();
         this.diagnosticsByDevice = new Map();
+        this.diagnosticData = {};
         this.normalizedMessage = normalizeDiagnosticMessage(config.diagnosticMessage);
         this.loraRole = this.resolveLoraRole(this.config.loraRole);
     }
@@ -150,6 +151,7 @@ export class DiagnosticClient {
         );
         console.log('configured IDs:', this.config.IDs.join(', '));
         console.log('diagnostic items:', this.normalizedMessage.length);
+        this.logHostState();
 
         this.syncDiagnosticWork();
 
@@ -161,12 +163,12 @@ export class DiagnosticClient {
             );
         }
 
-        if (this.config.reportIntervalMs > 0) {
-            this.reportTimer = setInterval(
-                () => this.reportReceiveStats(),
-                this.config.reportIntervalMs
-            );
-        }
+        // if (this.config.reportIntervalMs > 0) {
+        //     this.reportTimer = setInterval(
+        //         () => this.reportReceiveStats(),
+        //         this.config.reportIntervalMs
+        //     );
+        // }
     }
 
     // 处理 WebSocket 收到的文本或二进制消息。
@@ -228,14 +230,14 @@ export class DiagnosticClient {
         });
     }
 
-    // 处理 LoRa 帧；响应帧会被所有设备缓存，请求帧只由目标设备应答。
+    // 处理 LoRa 帧；请求帧只由目标设备应答，响应帧会被所有设备缓存。
     handleLoraFrame(loraFrame, frameBytes) {
-        if (loraFrame.sourceDeviceId === this.config.deviceId) {
-            return;
-        }
-
         if (loraFrame.type === LORA_FRAME_TYPES.DIAGNOSTIC_REQUEST) {
             if (loraFrame.targetDeviceId !== this.config.deviceId) {
+                return;
+            }
+
+            if (loraFrame.sourceDeviceId === this.config.deviceId) {
                 return;
             }
 
@@ -253,7 +255,10 @@ export class DiagnosticClient {
                 return;
             }
 
-            if (loraFrame.targetDeviceId === this.config.deviceId) {
+            if (
+                loraFrame.targetDeviceId === this.config.deviceId &&
+                loraFrame.sourceDeviceId !== this.config.deviceId
+            ) {
                 const matched = this.completePendingDiagnosticRequest(
                     loraFrame.sourceDeviceId,
                     loraFrame.seq
@@ -320,7 +325,7 @@ export class DiagnosticClient {
         );
     }
 
-    // 切换运行时主设备，并按新角色同步轮询和诊断发送。
+    // 切换运行时主设备，并按新角色同步轮询状态。
     switchHostDevice(hostDeviceId) {
         validateUInt16(hostDeviceId, 'hostDeviceId');
 
@@ -337,6 +342,7 @@ export class DiagnosticClient {
             ' previousRole=' + previousRole +
             ' currentRole=' + this.loraRole
         );
+        this.logHostState();
 
         return this.loraRole;
     }
@@ -351,6 +357,8 @@ export class DiagnosticClient {
             return Promise.resolve({
                 sent: false,
                 hostDeviceId,
+                deviceId: this.config.deviceId,
+                roleText: this.getRoleText(),
                 reason,
             });
         }
@@ -363,15 +371,22 @@ export class DiagnosticClient {
                     resolve({
                         sent: false,
                         hostDeviceId,
+                        deviceId: this.config.deviceId,
+                        roleText: this.getRoleText(),
                         reason: getErrorMessage(err),
                     });
                     return;
                 }
 
-                console.log('sent switch host device=' + hostDeviceId);
+                console.log(
+                    '切换主机命令已发送，目前主机切换为：' + hostDeviceId +
+                    '，本机为' + this.getRoleText()
+                );
                 resolve({
                     sent: true,
                     hostDeviceId,
+                    deviceId: this.config.deviceId,
+                    roleText: this.getRoleText(),
                     frameBytes: frame.length,
                 });
             });
@@ -386,7 +401,7 @@ export class DiagnosticClient {
             }
 
             const message = decodeDiagnosticMessage(packet);
-            this.updateDiagnosticSnapshot({
+            const stored = this.updateDiagnosticSnapshot({
                 deviceId,
                 seq,
                 packet,
@@ -398,15 +413,15 @@ export class DiagnosticClient {
             });
             const deviceText = deviceId ?? 'legacy';
             const legacyText = isLegacy ? ' legacy=true' : '';
-            // console.log(
-            //     'rx device=' + deviceText +
-            //     ' seq=' + (seq ?? 'none') +
-            //     ' frameBytes=' + frameBytes +
-            //     ' headerBytes=' + headerBytes +
-            //     ' payloadBytes=' + packet.length +
-            //     legacyText
-            // );
 
+            if (stored) {
+                console.log(
+                    'diagnosticData updated device=' + deviceText +
+                    ' seq=' + (seq ?? 'none') +
+                    ' payloadBytes=' + packet.length +
+                    legacyText
+                );
+            }
             if (this.config.logPacketHex) {
                 console.log('------', deviceText, packet.length, 'packet hex:', packet.toString('hex'));
             }
@@ -415,6 +430,7 @@ export class DiagnosticClient {
             }
             if (this.config.logDecodedTable) {
                 // console.table(toDiagnosticTableRows(message));
+                void toDiagnosticTableRows;
             }
         } catch (err) {
             console.error('binary decode failed:', getErrorMessage(err));
@@ -438,12 +454,14 @@ export class DiagnosticClient {
         }
 
         const packetBuffer = Buffer.from(packet);
+        const packetHex = packetBuffer.toString('hex');
+        this.diagnosticData[deviceId] = packetHex;
         this.diagnosticsByDevice.set(deviceId, {
             deviceId,
             seq,
             message,
             packet: packetBuffer,
-            packetHex: packetBuffer.toString('hex'),
+            packetHex,
             headerBytes,
             frameBytes,
             isLegacy,
@@ -464,11 +482,19 @@ export class DiagnosticClient {
         return Array.from(this.diagnosticsByDevice.values());
     }
 
-    // 判断设备是否在配置的诊断设备列表中。
+    // 获取按设备 ID 聚合的最新诊断十六进制数据。
+    getDiagnosticData() {
+        return { ...this.diagnosticData };
+    }
+
+    // 判断设备是否在配置的诊断设备列表中或就是本机。
     shouldStoreDevice(deviceId) {
         return deviceId !== null &&
             deviceId !== undefined &&
-            this.config.IDs.includes(deviceId);
+            (
+                this.config.IDs.includes(deviceId) ||
+                deviceId === this.config.deviceId
+            );
     }
 
     // 启动主机诊断轮询。
@@ -486,20 +512,7 @@ export class DiagnosticClient {
         this.clearPendingDiagnosticRequest();
     }
 
-    // 定时发送本机诊断，让主机也进入所有设备诊断数据缓存。
-    startOwnDiagnosticPublishing(socket = this.ws) {
-        if (!this.shouldPublishOwnDiagnostics(socket) || this.sendTimer) {
-            return;
-        }
-
-        this.sendDiagnosticFrame(socket);
-        this.sendTimer = setInterval(
-            () => this.sendDiagnosticFrame(socket),
-            this.config.sendIntervalMs
-        );
-    }
-
-    // 根据角色和配置同步轮询、自诊断发送状态。
+    // 根据角色和配置同步诊断轮询状态。
     syncDiagnosticWork() {
         this.stopDiagnosticPolling();
         this.clearSendTimer();
@@ -511,20 +524,6 @@ export class DiagnosticClient {
         if (this.config.pollDiagnostics && this.isHost()) {
             this.startDiagnosticPolling(this.ws);
         }
-        this.startOwnDiagnosticPublishing(this.ws);
-    }
-
-    // 判断当前是否需要发送本机诊断。
-    shouldPublishOwnDiagnostics(socket = this.ws) {
-        return Boolean(
-            socket &&
-            socket === this.ws &&
-            socket.readyState === WebSocket.OPEN &&
-            (
-                this.config.sendDiagnostics ||
-                (this.config.pollDiagnostics && this.isHost())
-            )
-        );
     }
 
     // 安排下一次诊断轮询。
@@ -541,7 +540,7 @@ export class DiagnosticClient {
         }, delay);
     }
 
-    // 轮询下一个从机诊断。
+    // 轮询下一个诊断设备，轮询目标包含主设备自己。
     pollNextDiagnostic(socket = this.ws) {
         if (!this.shouldPoll(socket) || this.pendingDiagnosticRequest) {
             return;
@@ -549,16 +548,38 @@ export class DiagnosticClient {
 
         const targetIds = this.getPollingTargetIds();
         if (targetIds.length === 0) {
-            console.log('[poll] no target IDs except current device');
+            console.log('[poll] no configured target IDs');
             this.scheduleNextDiagnosticPoll(socket, this.config.sendIntervalMs);
             return;
         }
 
         const targetDeviceId = targetIds[this.pollIndex % targetIds.length];
         this.pollIndex = (this.pollIndex + 1) % targetIds.length;
+        if (targetDeviceId === this.config.deviceId) {
+            this.pollOwnDiagnostic(socket);
+            return;
+        }
+
         if (!this.sendDiagnosticRequest(targetDeviceId, socket)) {
             this.scheduleNextDiagnosticPoll(socket, this.config.diagnosticPollGapMs);
         }
+    }
+
+    // 轮询本机诊断，并用标准 LoRa 响应帧发布本机数据。
+    pollOwnDiagnostic(socket = this.ws) {
+        if (!this.shouldPoll(socket)) {
+            return false;
+        }
+
+        const seq = this.sequence;
+        this.sequence = nextSequence(this.sequence);
+        const sent = this.sendDiagnosticResponseFrame(this.config.deviceId, seq, socket);
+        console.log(
+            'poll self diagnostic device=' + this.config.deviceId +
+            ' seq=' + seq
+        );
+        this.scheduleNextDiagnosticPoll(socket, this.config.diagnosticPollGapMs);
+        return sent;
     }
 
     // 向指定设备发送诊断请求。
@@ -623,7 +644,7 @@ export class DiagnosticClient {
     // 向请求方发送本机诊断响应。
     sendDiagnosticResponseFrame(targetDeviceId, seq, socket = this.ws) {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
-            return;
+            return false;
         }
 
         let packet;
@@ -631,7 +652,7 @@ export class DiagnosticClient {
             packet = encodeDiagnosticMessage(this.config.diagnosticMessage);
         } catch (err) {
             console.error('diagnostic response encode failed:', getErrorMessage(err));
-            return;
+            return false;
         }
 
         const frame = createLoraDiagnosticResponseFrame({
@@ -665,9 +686,11 @@ export class DiagnosticClient {
                 ' frameBytes=' + frame.length +
                 ' payloadBytes=' + packet.length
             );
+            return true;
         } catch (err) {
             console.error('diagnostic response seq=' + seq + ' failed:', getErrorMessage(err));
             terminateSocket(socket);
+            return false;
         }
     }
 
@@ -700,12 +723,17 @@ export class DiagnosticClient {
         );
     }
 
-    // 获取除本机以外的轮询目标设备。
+    // 获取轮询目标设备，包含本机 ID。
     getPollingTargetIds() {
-        return this.config.IDs.filter(id => id !== this.config.deviceId);
+        const targetIds = this.config.IDs.slice();
+        if (!targetIds.includes(this.config.deviceId)) {
+            targetIds.unshift(this.config.deviceId);
+        }
+
+        return targetIds;
     }
 
-    // 设置 LoRa 角色，并同步轮询和自诊断发送状态。
+    // 设置 LoRa 角色，并同步轮询状态。
     setLoraRole(role = LORA_ROLES.AUTO) {
         this.config.loraRole = normalizeLoraRole(role);
         this.loraRole = this.resolveLoraRole(this.config.loraRole);
@@ -715,6 +743,7 @@ export class DiagnosticClient {
             'lora role set to ' + this.loraRole +
             ' requested=' + this.config.loraRole
         );
+        this.logHostState();
         return this.loraRole;
     }
 
@@ -735,10 +764,23 @@ export class DiagnosticClient {
         return this.loraRole === LORA_ROLES.HOST;
     }
 
-    // 发送本机诊断帧，并更新本机诊断缓存。
+    // 获取当前 LoRa 角色的中文名称。
+    getRoleText() {
+        return this.isHost() ? '主机' : '从机';
+    }
+
+    // 打印当前主机和本机角色。
+    logHostState() {
+        console.log(
+            '目前主机切换为：' + this.config.HOSTID +
+            '，本机为' + this.getRoleText()
+        );
+    }
+
+    // 手动发送本机诊断帧，并更新本机诊断缓存。
     sendDiagnosticFrame(socket = this.ws) {
         if (!socket || socket.readyState !== WebSocket.OPEN) {
-            return;
+            return false;
         }
 
         let packet;
@@ -746,7 +788,7 @@ export class DiagnosticClient {
             packet = encodeDiagnosticMessage(this.config.diagnosticMessage);
         } catch (err) {
             console.error('diagnostic encode failed:', getErrorMessage(err));
-            return;
+            return false;
         }
 
         const seq = this.sequence;
@@ -780,9 +822,11 @@ export class DiagnosticClient {
                 ' frameBytes=' + frame.length +
                 ' payloadBytes=' + packet.length
             );
+            return true;
         } catch (err) {
             console.error('send seq=' + seq + ' failed:', getErrorMessage(err));
             terminateSocket(socket);
+            return false;
         }
     }
 
@@ -949,6 +993,7 @@ if (isMainModule()) {
 function sendSwitchHostDeviceOnce(hostDeviceId) {
     const config = getClientConfig();
     const frame = createDownlinkSwitchHostFrame({ hostDeviceId });
+    const roleText = config.deviceId === hostDeviceId ? '主机' : '从机';
     const socket = new WebSocket(config.url, {
         handshakeTimeout: config.connectTimeoutMs,
     });
@@ -977,14 +1022,23 @@ function sendSwitchHostDeviceOnce(hostDeviceId) {
                     finish({
                         sent: false,
                         hostDeviceId,
+                        deviceId: config.deviceId,
+                        roleText,
                         reason: getErrorMessage(err),
+                        url: config.url,
                     });
                     return;
                 }
 
+                console.log(
+                    '切换主机命令已发送，目前主机切换为：' + hostDeviceId +
+                    '，本机为' + roleText
+                );
                 finish({
                     sent: true,
                     hostDeviceId,
+                    deviceId: config.deviceId,
+                    roleText,
                     frameBytes: frame.length,
                     url: config.url,
                 });
@@ -995,7 +1049,20 @@ function sendSwitchHostDeviceOnce(hostDeviceId) {
             finish({
                 sent: false,
                 hostDeviceId,
+                deviceId: config.deviceId,
+                roleText,
                 reason: getErrorMessage(err),
+                url: config.url,
+            });
+        });
+
+        socket.on('close', () => {
+            finish({
+                sent: false,
+                hostDeviceId,
+                deviceId: config.deviceId,
+                roleText,
+                reason: 'socket closed before switch host frame was sent',
                 url: config.url,
             });
         });
