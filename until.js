@@ -48,6 +48,7 @@ export const DOWNLINK_SWITCH_HOST_FRAME_BYTES = DOWNLINK_FRAME_HEADER_BYTES
 const WS_CLOSING = 2;
 const WS_CLOSED = 3;
 
+// 合并配置文件和环境变量，生成运行时客户端配置。
 export function getClientConfig() {
     const mergedConfig = {
         ...CONNECTION_CONFIG,
@@ -68,10 +69,12 @@ export function getClientConfig() {
     };
 }
 
+// 创建任务控制下发帧。
 export function createDownlinkTaskControlFrame({ deviceId, taskId }) {
     return createDownlinkTargetFrame(DOWNLINK_FRAME_FUNCTIONS.TASK_CONTROL, deviceId, taskId);
 }
 
+// 创建操作控制下发帧。
 export function createDownlinkOperationControlFrame({ deviceId, controlId }) {
     return createDownlinkTargetFrame(
         DOWNLINK_FRAME_FUNCTIONS.OPERATION_CONTROL,
@@ -80,6 +83,7 @@ export function createDownlinkOperationControlFrame({ deviceId, controlId }) {
     );
 }
 
+// 创建切换主设备下发帧。
 export function createDownlinkSwitchHostFrame({ hostDeviceId }) {
     validateUInt16(hostDeviceId, 'hostDeviceId');
 
@@ -90,6 +94,7 @@ export function createDownlinkSwitchHostFrame({ hostDeviceId }) {
     return frame;
 }
 
+// 解析下发二进制帧。
 export function unwrapDownlinkFrame(frameLike) {
     const frame = Buffer.from(frameLike);
     if (frame.length < DOWNLINK_FRAME_HEADER_BYTES) {
@@ -141,6 +146,7 @@ export function unwrapDownlinkFrame(frameLike) {
     };
 }
 
+// 创建普通诊断数据帧。
 export function createDiagnosticFrame({ deviceId, seq, packet }) {
     validateUInt16(deviceId, 'deviceId');
 
@@ -153,6 +159,7 @@ export function createDiagnosticFrame({ deviceId, seq, packet }) {
     return frame;
 }
 
+// 创建 LoRa 诊断请求帧。
 export function createLoraDiagnosticRequestFrame({ sourceDeviceId, targetDeviceId, seq }) {
     return createLoraFrame({
         type: LORA_FRAME_TYPES.DIAGNOSTIC_REQUEST,
@@ -162,6 +169,7 @@ export function createLoraDiagnosticRequestFrame({ sourceDeviceId, targetDeviceI
     });
 }
 
+// 创建 LoRa 诊断响应帧。
 export function createLoraDiagnosticResponseFrame({ sourceDeviceId, targetDeviceId, seq, packet }) {
     const payload = Buffer.from(packet);
     if (!isDiagnosticBinaryMessage(payload)) {
@@ -177,6 +185,7 @@ export function createLoraDiagnosticResponseFrame({ sourceDeviceId, targetDevice
     });
 }
 
+// 解析 LoRa 诊断帧。
 export function unwrapLoraFrame(frameLike) {
     const frame = Buffer.from(frameLike);
     if (frame.length < LORA_FRAME_HEADER_BYTES) {
@@ -217,6 +226,7 @@ export function unwrapLoraFrame(frameLike) {
     };
 }
 
+// 创建 LoRa 底层帧。
 function createLoraFrame({ type, sourceDeviceId, targetDeviceId, seq, packet = Buffer.alloc(0) }) {
     validateLoraFrameType(type);
     validateUInt16(sourceDeviceId, 'sourceDeviceId');
@@ -244,6 +254,7 @@ function createLoraFrame({ type, sourceDeviceId, targetDeviceId, seq, packet = B
     return frame;
 }
 
+// 校验 LoRa 帧类型。
 function validateLoraFrameType(type) {
     if (
         type !== LORA_FRAME_TYPES.DIAGNOSTIC_REQUEST &&
@@ -253,6 +264,7 @@ function validateLoraFrameType(type) {
     }
 }
 
+// 创建包含目标设备和值的下发帧。
 function createDownlinkTargetFrame(functionCode, deviceId, value) {
     validateDownlinkFunctionCode(functionCode);
     validateUInt16(deviceId, 'deviceId');
@@ -266,6 +278,7 @@ function createDownlinkTargetFrame(functionCode, deviceId, value) {
     return frame;
 }
 
+// 创建下发帧头。
 function createDownlinkHeader(frameBytes) {
     const frame = Buffer.allocUnsafe(frameBytes);
     frame.writeUInt16BE(DOWNLINK_FRAME_MAGIC, 0);
@@ -274,6 +287,7 @@ function createDownlinkHeader(frameBytes) {
     return frame;
 }
 
+// 校验下发功能码。
 function validateDownlinkFunctionCode(functionCode) {
     if (
         functionCode !== DOWNLINK_FRAME_FUNCTIONS.TASK_CONTROL &&
@@ -284,6 +298,7 @@ function validateDownlinkFunctionCode(functionCode) {
     }
 }
 
+// 校验下发帧长度。
 function assertDownlinkFrameLength(frame, expectedBytes, name) {
     if (frame.length !== expectedBytes) {
         throw new Error(
@@ -293,6 +308,7 @@ function assertDownlinkFrameLength(frame, expectedBytes, name) {
     }
 }
 
+// 解析普通诊断数据帧。
 export function unwrapDiagnosticFrame(frameLike) {
     const frame = Buffer.from(frameLike);
 
@@ -341,6 +357,7 @@ export function unwrapDiagnosticFrame(frameLike) {
     };
 }
 
+// 创建接收统计对象。
 export function createReceiveStats() {
     return {
         received: 0,
@@ -358,6 +375,7 @@ export function createReceiveStats() {
     };
 }
 
+// 更新接收统计对象。
 export function updateReceiveStats(stats, seq, now = Date.now()) {
     stats.received++;
 
@@ -395,6 +413,7 @@ export function updateReceiveStats(stats, seq, now = Date.now()) {
     }
 }
 
+// 格式化接收统计信息。
 export function formatReceiveStats(stats, now = Date.now()) {
     const elapsedSeconds = (now - stats.reportAt) / 1000;
     const packetsInWindow = stats.received - stats.reportReceived;
@@ -416,6 +435,7 @@ export function formatReceiveStats(stats, now = Date.now()) {
     );
 }
 
+// 重置统计输出窗口。
 export function resetReportWindow(stats, now = Date.now()) {
     stats.reportAt = now;
     stats.reportReceived = stats.received;
@@ -425,6 +445,7 @@ export function resetReportWindow(stats, now = Date.now()) {
     stats.intervalMax = 0;
 }
 
+// 计算带抖动的重连等待时间。
 export function getReconnectDelay(attempt, config = CONNECTION_CONFIG) {
     const baseDelay = Math.min(
         config.reconnectInitialDelayMs * 2 ** attempt,
@@ -435,10 +456,12 @@ export function getReconnectDelay(attempt, config = CONNECTION_CONFIG) {
     return Math.min(baseDelay + jitter, config.reconnectMaxDelayMs);
 }
 
+// 计算下一个 32 位消息序号。
 export function nextSequence(seq) {
     return (seq + 1) >>> 0;
 }
 
+// 终止未关闭的 WebSocket。
 export function terminateSocket(socket) {
     if (
         socket.readyState === WS_CLOSED ||
@@ -450,10 +473,12 @@ export function terminateSocket(socket) {
     socket.terminate();
 }
 
+// 提取错误信息。
 export function getErrorMessage(err) {
     return err?.message || String(err);
 }
 
+// 转成诊断表格行。
 export function toDiagnosticTableRows(items) {
     return items.map(item => ({
         level: item.level,
@@ -463,18 +488,21 @@ export function toDiagnosticTableRows(items) {
     }));
 }
 
+// 校验 16 位无符号整数。
 export function validateUInt16(value, name) {
     if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
         throw new Error(name + ' must be an integer from 0 to 65535: ' + value);
     }
 }
 
+// 校验 32 位无符号整数。
 export function validateUInt32(value, name) {
     if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
         throw new Error(name + ' must be an integer from 0 to 4294967295: ' + value);
     }
 }
 
+// 读取 16 位无符号整数环境变量。
 function readUInt16Env(name, fallback) {
     const rawValue = process.env[name];
     if (rawValue === undefined || rawValue === '') {
@@ -487,6 +515,7 @@ function readUInt16Env(name, fallback) {
     return value;
 }
 
+// 读取 16 位无符号整数列表环境变量。
 function readUInt16ListEnv(name, fallback) {
     const rawValue = process.env[name];
     if (rawValue === undefined || rawValue === '') {
@@ -506,6 +535,7 @@ function readUInt16ListEnv(name, fallback) {
     return values;
 }
 
+// 解析 16 位无符号整数字面量。
 function readUInt16Literal(name, rawValue) {
     const value = Number(rawValue);
     if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
