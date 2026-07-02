@@ -6,33 +6,49 @@ import {
     normalizeDiagnosticMessage,
 } from './diagnosticBinaryCodec.js';
 import {
-    DEFAULT_CLIENT_KEY,
+    DOWNLINK_FRAME_FUNCTIONS,
     LORA_ROLES,
-    getClientConfig,
 } from './config.js';
 import {
     LORA_FRAME_TYPES,
     createDiagnosticFrame,
+    createDownlinkSwitchHostFrame,
     createLoraDiagnosticRequestFrame,
     createLoraDiagnosticResponseFrame,
     createReceiveStats,
     formatReceiveStats,
+    getClientConfig,
     getErrorMessage,
     getReconnectDelay,
     nextSequence,
     resetReportWindow,
     terminateSocket,
     toDiagnosticTableRows,
+    unwrapDownlinkFrame,
     unwrapDiagnosticFrame,
     unwrapLoraFrame,
     updateReceiveStats,
     validateUInt16,
 } from './until.js';
 
-export function startDiagnosticClient(clientKey = resolveClientKey()) {
-    const client = new DiagnosticClient(getClientConfig(clientKey));
+let activeDiagnosticClient = null;
+
+export function startDiagnosticClient() {
+    const client = new DiagnosticClient(getClientConfig());
+    activeDiagnosticClient = client;
     client.connect();
     return client;
+}
+
+export function SwitchHostDevice(hostDeviceId, client = activeDiagnosticClient) {
+    validateUInt16(hostDeviceId, 'hostDeviceId');
+
+    if (client) {
+        client.switchHostDevice(hostDeviceId);
+        return client.sendSwitchHostDeviceFrame(hostDeviceId);
+    }
+
+    return sendSwitchHostDeviceOnce(hostDeviceId);
 }
 
 export function setLoraRole(client, role) {
@@ -176,6 +192,20 @@ export class DiagnosticClient {
             return;
         }
 
+        let downlinkFrame;
+        try {
+            downlinkFrame = unwrapDownlinkFrame(frame);
+        } catch (err) {
+            console.error('downlink frame decode failed:', getErrorMessage(err));
+            console.error('frame HEX:', frame.toString('hex'));
+            return;
+        }
+
+        if (downlinkFrame) {
+            this.handleDownlinkFrame(downlinkFrame);
+            return;
+        }
+
         const {
             deviceId,
             seq,
@@ -239,6 +269,101 @@ export class DiagnosticClient {
                 isLegacy: false,
             });
         }
+    }
+
+    handleDownlinkFrame(downlinkFrame) {
+        if (downlinkFrame.functionCode === DOWNLINK_FRAME_FUNCTIONS.SWITCH_HOST) {
+            this.switchHostDevice(downlinkFrame.hostDeviceId);
+            return;
+        }
+
+        if (downlinkFrame.deviceId !== this.config.deviceId) {
+            console.log(
+                'downlink ignored target=' + downlinkFrame.deviceId +
+                ' self=' + this.config.deviceId +
+                ' function=' + downlinkFrame.functionCode
+            );
+            return;
+        }
+
+        if (downlinkFrame.functionCode === DOWNLINK_FRAME_FUNCTIONS.TASK_CONTROL) {
+            this.handleTaskControl(downlinkFrame.taskId);
+            return;
+        }
+
+        if (downlinkFrame.functionCode === DOWNLINK_FRAME_FUNCTIONS.OPERATION_CONTROL) {
+            this.handleOperationControl(downlinkFrame.controlId);
+        }
+    }
+
+    handleTaskControl(taskId) {
+        console.log(
+            'downlink task control device=' + this.config.deviceId +
+            ' taskId=' + taskId
+        );
+    }
+
+    handleOperationControl(controlId) {
+        console.log(
+            'downlink operation control device=' + this.config.deviceId +
+            ' controlId=' + controlId
+        );
+    }
+
+    switchHostDevice(hostDeviceId) {
+        validateUInt16(hostDeviceId, 'hostDeviceId');
+
+        const previousHostId = this.config.HOSTID;
+        const previousRole = this.loraRole;
+        this.config.HOSTID = hostDeviceId;
+        this.config.loraRole = LORA_ROLES.AUTO;
+        this.loraRole = this.resolveLoraRole();
+        this.syncDiagnosticPolling();
+
+        console.log(
+            'host switched from=' + previousHostId +
+            ' to=' + this.config.HOSTID +
+            ' previousRole=' + previousRole +
+            ' currentRole=' + this.loraRole
+        );
+
+        return this.loraRole;
+    }
+
+    sendSwitchHostDeviceFrame(hostDeviceId, socket = this.ws) {
+        validateUInt16(hostDeviceId, 'hostDeviceId');
+
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            const reason = 'switch host frame requires an open websocket';
+            console.warn(reason);
+            return Promise.resolve({
+                sent: false,
+                hostDeviceId,
+                reason,
+            });
+        }
+
+        const frame = createDownlinkSwitchHostFrame({ hostDeviceId });
+        return new Promise(resolve => {
+            socket.send(frame, { binary: true }, err => {
+                if (err) {
+                    console.error('switch host send failed:', getErrorMessage(err));
+                    resolve({
+                        sent: false,
+                        hostDeviceId,
+                        reason: getErrorMessage(err),
+                    });
+                    return;
+                }
+
+                console.log('sent switch host device=' + hostDeviceId);
+                resolve({
+                    sent: true,
+                    hostDeviceId,
+                    frameBytes: frame.length,
+                });
+            });
+        });
     }
 
     handleDiagnosticPacket({ deviceId, seq, packet, headerBytes, frameBytes, isLegacy }) {
@@ -451,17 +576,21 @@ export class DiagnosticClient {
     setLoraRole(role = LORA_ROLES.AUTO) {
         this.config.loraRole = normalizeLoraRole(role);
         this.loraRole = this.resolveLoraRole(this.config.loraRole);
-        this.stopDiagnosticPolling();
-
-        if (this.ws?.readyState === WebSocket.OPEN && this.config.pollDiagnostics && this.isHost()) {
-            this.startDiagnosticPolling(this.ws);
-        }
+        this.syncDiagnosticPolling();
 
         console.log(
             'lora role set to ' + this.loraRole +
             ' requested=' + this.config.loraRole
         );
         return this.loraRole;
+    }
+
+    syncDiagnosticPolling() {
+        this.stopDiagnosticPolling();
+
+        if (this.ws?.readyState === WebSocket.OPEN && this.config.pollDiagnostics && this.isHost()) {
+            this.startDiagnosticPolling(this.ws);
+        }
     }
 
     resolveLoraRole(role = LORA_ROLES.AUTO) {
@@ -638,7 +767,7 @@ function normalizeIds(ids) {
         }
     }
 
-    return Object.freeze(normalizedIds);
+    return normalizedIds;
 }
 
 function normalizeLoraRole(role = LORA_ROLES.AUTO) {
@@ -656,14 +785,65 @@ function normalizeLoraRole(role = LORA_ROLES.AUTO) {
     throw new Error('loraRole must be auto, host, slave, or master: ' + role);
 }
 
-function resolveClientKey() {
-    return process.argv[2] || process.env.CLIENT_KEY || DEFAULT_CLIENT_KEY;
-}
-
 function isMainModule() {
     return Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
 }
 
 if (isMainModule()) {
     startDiagnosticClient();
+}
+
+function sendSwitchHostDeviceOnce(hostDeviceId) {
+    const config = getClientConfig();
+    const frame = createDownlinkSwitchHostFrame({ hostDeviceId });
+    const socket = new WebSocket(config.url, {
+        handshakeTimeout: config.connectTimeoutMs,
+    });
+
+    return new Promise(resolve => {
+        let settled = false;
+
+        function finish(result) {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            if (
+                socket.readyState === WebSocket.OPEN ||
+                socket.readyState === WebSocket.CONNECTING
+            ) {
+                socket.close();
+            }
+            resolve(result);
+        }
+
+        socket.on('open', () => {
+            socket.send(frame, { binary: true }, err => {
+                if (err) {
+                    finish({
+                        sent: false,
+                        hostDeviceId,
+                        reason: getErrorMessage(err),
+                    });
+                    return;
+                }
+
+                finish({
+                    sent: true,
+                    hostDeviceId,
+                    frameBytes: frame.length,
+                    url: config.url,
+                });
+            });
+        });
+
+        socket.on('error', err => {
+            finish({
+                sent: false,
+                hostDeviceId,
+                reason: getErrorMessage(err),
+                url: config.url,
+            });
+        });
+    });
 }

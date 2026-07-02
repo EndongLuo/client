@@ -1,5 +1,14 @@
 import { isDiagnosticBinaryMessage } from './diagnosticBinaryCodec.js';
-import { CONNECTION_CONFIG, PROTOCOL_CONFIG } from './config.js';
+import {
+    CLIENT_CONFIG,
+    CONNECTION_CONFIG,
+    DEFAULT_RUNTIME_CONFIG,
+    DIAGNOSTIC_MESSAGE,
+    DOWNLINK_FRAME_FUNCTIONS,
+    DOWNLINK_FRAME_MAGIC,
+    DOWNLINK_FRAME_VERSION,
+    PROTOCOL_CONFIG,
+} from './config.js';
 
 export const DEVICE_ID_BYTES = PROTOCOL_CONFIG.deviceIdBytes;
 export const SEQUENCE_BYTES = PROTOCOL_CONFIG.sequenceBytes;
@@ -9,22 +18,128 @@ const LORA_MAGIC_BYTES = 2;
 const LORA_VERSION_BYTES = 1;
 const LORA_TYPE_BYTES = 1;
 const LORA_DEVICE_ID_BYTES = 2;
+const DOWNLINK_MAGIC_BYTES = 2;
+const DOWNLINK_VERSION_BYTES = 1;
+const DOWNLINK_FUNCTION_BYTES = 1;
+const DOWNLINK_DEVICE_ID_BYTES = 2;
+const DOWNLINK_VALUE_BYTES = 2;
 
 export const LORA_FRAME_MAGIC = 0x4c52;
 export const LORA_FRAME_VERSION = 1;
-export const LORA_FRAME_TYPES = Object.freeze({
+export const LORA_FRAME_TYPES = {
     DIAGNOSTIC_REQUEST: 1,
     DIAGNOSTIC_RESPONSE: 2,
-});
+};
 export const LORA_FRAME_HEADER_BYTES = LORA_MAGIC_BYTES
     + LORA_VERSION_BYTES
     + LORA_TYPE_BYTES
     + LORA_DEVICE_ID_BYTES
     + LORA_DEVICE_ID_BYTES
     + SEQUENCE_BYTES;
+export const DOWNLINK_FRAME_HEADER_BYTES = DOWNLINK_MAGIC_BYTES
+    + DOWNLINK_VERSION_BYTES
+    + DOWNLINK_FUNCTION_BYTES;
+export const DOWNLINK_TARGET_FRAME_BYTES = DOWNLINK_FRAME_HEADER_BYTES
+    + DOWNLINK_DEVICE_ID_BYTES
+    + DOWNLINK_VALUE_BYTES;
+export const DOWNLINK_SWITCH_HOST_FRAME_BYTES = DOWNLINK_FRAME_HEADER_BYTES
+    + DOWNLINK_DEVICE_ID_BYTES;
 
 const WS_CLOSING = 2;
 const WS_CLOSED = 3;
+
+export function getClientConfig() {
+    const mergedConfig = {
+        ...CONNECTION_CONFIG,
+        ...DEFAULT_RUNTIME_CONFIG,
+        ...CLIENT_CONFIG,
+    };
+    const deviceId = readUInt16Env('DEVICE_ID', mergedConfig.deviceId);
+    const hostId = readUInt16Env('HOSTID', mergedConfig.HOSTID);
+    const ids = readUInt16ListEnv('IDS', mergedConfig.IDs);
+
+    return {
+        ...mergedConfig,
+        deviceId,
+        HOSTID: hostId,
+        IDs: ids,
+        loraRole: process.env.LORA_ROLE || mergedConfig.loraRole,
+        diagnosticMessage: mergedConfig.diagnosticMessage ?? DIAGNOSTIC_MESSAGE,
+    };
+}
+
+export function createDownlinkTaskControlFrame({ deviceId, taskId }) {
+    return createDownlinkTargetFrame(DOWNLINK_FRAME_FUNCTIONS.TASK_CONTROL, deviceId, taskId);
+}
+
+export function createDownlinkOperationControlFrame({ deviceId, controlId }) {
+    return createDownlinkTargetFrame(
+        DOWNLINK_FRAME_FUNCTIONS.OPERATION_CONTROL,
+        deviceId,
+        controlId
+    );
+}
+
+export function createDownlinkSwitchHostFrame({ hostDeviceId }) {
+    validateUInt16(hostDeviceId, 'hostDeviceId');
+
+    const frame = createDownlinkHeader(DOWNLINK_SWITCH_HOST_FRAME_BYTES);
+    frame.writeUInt8(DOWNLINK_FRAME_FUNCTIONS.SWITCH_HOST, DOWNLINK_MAGIC_BYTES + DOWNLINK_VERSION_BYTES);
+    frame.writeUInt16BE(hostDeviceId, DOWNLINK_FRAME_HEADER_BYTES);
+
+    return frame;
+}
+
+export function unwrapDownlinkFrame(frameLike) {
+    const frame = Buffer.from(frameLike);
+    if (frame.length < DOWNLINK_FRAME_HEADER_BYTES) {
+        return null;
+    }
+    if (frame.readUInt16BE(0) !== DOWNLINK_FRAME_MAGIC) {
+        return null;
+    }
+
+    const version = frame.readUInt8(DOWNLINK_MAGIC_BYTES);
+    if (version !== DOWNLINK_FRAME_VERSION) {
+        throw new Error('downlink frame version mismatch: ' + version);
+    }
+
+    const functionCode = frame.readUInt8(DOWNLINK_MAGIC_BYTES + DOWNLINK_VERSION_BYTES);
+    validateDownlinkFunctionCode(functionCode);
+
+    if (functionCode === DOWNLINK_FRAME_FUNCTIONS.TASK_CONTROL) {
+        assertDownlinkFrameLength(frame, DOWNLINK_TARGET_FRAME_BYTES, 'task control');
+        return {
+            version,
+            functionCode,
+            deviceId: frame.readUInt16BE(DOWNLINK_FRAME_HEADER_BYTES),
+            taskId: frame.readUInt16BE(DOWNLINK_FRAME_HEADER_BYTES + DOWNLINK_DEVICE_ID_BYTES),
+            headerBytes: DOWNLINK_FRAME_HEADER_BYTES,
+            isDownlinkFrame: true,
+        };
+    }
+
+    if (functionCode === DOWNLINK_FRAME_FUNCTIONS.OPERATION_CONTROL) {
+        assertDownlinkFrameLength(frame, DOWNLINK_TARGET_FRAME_BYTES, 'operation control');
+        return {
+            version,
+            functionCode,
+            deviceId: frame.readUInt16BE(DOWNLINK_FRAME_HEADER_BYTES),
+            controlId: frame.readUInt16BE(DOWNLINK_FRAME_HEADER_BYTES + DOWNLINK_DEVICE_ID_BYTES),
+            headerBytes: DOWNLINK_FRAME_HEADER_BYTES,
+            isDownlinkFrame: true,
+        };
+    }
+
+    assertDownlinkFrameLength(frame, DOWNLINK_SWITCH_HOST_FRAME_BYTES, 'switch host');
+    return {
+        version,
+        functionCode,
+        hostDeviceId: frame.readUInt16BE(DOWNLINK_FRAME_HEADER_BYTES),
+        headerBytes: DOWNLINK_FRAME_HEADER_BYTES,
+        isDownlinkFrame: true,
+    };
+}
 
 export function createDiagnosticFrame({ deviceId, seq, packet }) {
     validateUInt16(deviceId, 'deviceId');
@@ -135,6 +250,46 @@ function validateLoraFrameType(type) {
         type !== LORA_FRAME_TYPES.DIAGNOSTIC_RESPONSE
     ) {
         throw new Error('unknown lora frame type: ' + type);
+    }
+}
+
+function createDownlinkTargetFrame(functionCode, deviceId, value) {
+    validateDownlinkFunctionCode(functionCode);
+    validateUInt16(deviceId, 'deviceId');
+    validateUInt16(value, 'downlinkValue');
+
+    const frame = createDownlinkHeader(DOWNLINK_TARGET_FRAME_BYTES);
+    frame.writeUInt8(functionCode, DOWNLINK_MAGIC_BYTES + DOWNLINK_VERSION_BYTES);
+    frame.writeUInt16BE(deviceId, DOWNLINK_FRAME_HEADER_BYTES);
+    frame.writeUInt16BE(value, DOWNLINK_FRAME_HEADER_BYTES + DOWNLINK_DEVICE_ID_BYTES);
+
+    return frame;
+}
+
+function createDownlinkHeader(frameBytes) {
+    const frame = Buffer.allocUnsafe(frameBytes);
+    frame.writeUInt16BE(DOWNLINK_FRAME_MAGIC, 0);
+    frame.writeUInt8(DOWNLINK_FRAME_VERSION, DOWNLINK_MAGIC_BYTES);
+
+    return frame;
+}
+
+function validateDownlinkFunctionCode(functionCode) {
+    if (
+        functionCode !== DOWNLINK_FRAME_FUNCTIONS.TASK_CONTROL &&
+        functionCode !== DOWNLINK_FRAME_FUNCTIONS.OPERATION_CONTROL &&
+        functionCode !== DOWNLINK_FRAME_FUNCTIONS.SWITCH_HOST
+    ) {
+        throw new Error('unknown downlink function: ' + functionCode);
+    }
+}
+
+function assertDownlinkFrameLength(frame, expectedBytes, name) {
+    if (frame.length !== expectedBytes) {
+        throw new Error(
+            'downlink ' + name + ' frame length must be ' +
+            expectedBytes + ' bytes: ' + frame.length
+        );
     }
 }
 
@@ -318,4 +473,44 @@ export function validateUInt32(value, name) {
     if (!Number.isInteger(value) || value < 0 || value > 0xffffffff) {
         throw new Error(name + ' must be an integer from 0 to 4294967295: ' + value);
     }
+}
+
+function readUInt16Env(name, fallback) {
+    const rawValue = process.env[name];
+    if (rawValue === undefined || rawValue === '') {
+        return fallback;
+    }
+
+    const value = Number(rawValue);
+    validateUInt16(value, name);
+
+    return value;
+}
+
+function readUInt16ListEnv(name, fallback) {
+    const rawValue = process.env[name];
+    if (rawValue === undefined || rawValue === '') {
+        return fallback;
+    }
+
+    const values = rawValue
+        .split(',')
+        .map(value => value.trim())
+        .filter(Boolean)
+        .map(value => readUInt16Literal(name, value));
+
+    if (values.length === 0) {
+        throw new Error(name + ' must contain at least one id');
+    }
+
+    return values;
+}
+
+function readUInt16Literal(name, rawValue) {
+    const value = Number(rawValue);
+    if (!Number.isInteger(value) || value < 0 || value > 0xffff) {
+        throw new Error(name + ' contains invalid id: ' + rawValue);
+    }
+
+    return value;
 }
